@@ -1,0 +1,10 @@
+langchain
+langchain-openai
+streamlit
+python-dotenv
+pytesseract
+pillow
+pypdfium2
+pandas
+ipykernel
+ipywidgets

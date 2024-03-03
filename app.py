@@ -1,7 +1,7 @@
-from langchain.chat_models import ChatOpenAI
+from langchain_openai.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from pytesseract import image_to_string
 from PIL import Image
 from io import BytesIO
@@ -10,14 +10,9 @@ import streamlit as st
 import multiprocessing
 from tempfile import NamedTemporaryFile
 import pandas as pd
-import json
-import requests
-
-load_dotenv()
+import json, os
 
 # 1. Convert PDF file into images via pypdfium2
-
-
 def convert_pdf_to_images(file_path, scale=300/72):
 
     pdf_file = pdfium.PdfDocument(file_path)
@@ -42,8 +37,6 @@ def convert_pdf_to_images(file_path, scale=300/72):
     return final_images
 
 # 2. Extract text from images via pytesseract
-
-
 def extract_text_from_img(list_dict_final_images):
 
     image_list = [list(data.values())[0] for data in list_dict_final_images]
@@ -88,27 +81,14 @@ def extract_structured_data(content: str, data_points):
 
     chain = LLMChain(llm=llm, prompt=prompt)
 
-    results = chain.run(content=content, data_points=data_points)
+    results = chain.invoke({"content":content, "data_points":data_points})
 
     return results
 
 
 # 4. Send data to make.com via webhook
 def send_to_make(data):
-    # Replace with your own link
-    webhook_url = "https://hook.eu1.make.com/xxxxxxxxxxxxxxxxx"
-
-    json = {
-        "data": data
-    }
-
-    try:
-        response = requests.post(webhook_url, json=json)
-        response.raise_for_status()  # Check for any HTTP errors
-        print("Data sent successfully!")
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to send data: {e}")
-
+    print(data)
 
 # 5. Streamlit app
 def main():
@@ -119,7 +99,22 @@ def main():
         "invoice_date": "when was the invoice issued",
     }"""
 
-    st.set_page_config(page_title="Doc extraction", page_icon=":bird:")
+    st.set_page_config(page_title="Doc extraction", page_icon=":bird:", initial_sidebar_state="collapsed")
+
+    try:
+        load_dotenv(find_dotenv())
+    except Exception as e:
+        # Sidebar contents for logIN, choose plugin, and export chat
+        with st.sidebar:
+            st.title('👋😁💬 Langchain Agent MRKL')
+            if OPENAI_API_KEY := st.text_input('Enter OpenAI API token:', type="password"):
+                try:
+                    ChatOpenAI(model="gpt-3.5-turbo-0613",temperature=0, openai_api_key=OPENAI_API_KEY).invoke('hello!')
+                    os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
+                    st.success(body='Your Api key provided is good to go', icon='🎉')
+                except:
+                    st.warning(body='Check out your api key has the model gpt-3.5-turbo-0613 available to use this product', icon='⚠️')
+                    st.stop()
 
     st.header("Doc extraction :bird:")
 
@@ -135,9 +130,8 @@ def main():
             with NamedTemporaryFile(dir='.', suffix='.csv') as f:
                 f.write(file.getbuffer())
                 content = extract_content_from_url(f.name)
-                print(content)
                 data = extract_structured_data(content, data_points)
-                json_data = json.loads(data)
+                json_data = json.loads(data['text'])
                 if isinstance(json_data, list):
                     results.extend(json_data)  # Use extend() for lists
                 else:
