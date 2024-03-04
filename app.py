@@ -102,7 +102,7 @@ def main():
     st.set_page_config(page_title="Doc extraction", page_icon=":bird:", initial_sidebar_state="collapsed")
 
     try:
-        load_dotenv(find_dotenv())
+        load_dotenv(find_dotenv(raise_error_if_not_found=True))
     except Exception as e:
         # Sidebar contents for logIN, choose plugin, and export chat
         with st.sidebar:
